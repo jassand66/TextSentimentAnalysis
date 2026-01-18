@@ -1,4 +1,4 @@
-# src/clean_data.pypop
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lower, regexp_replace, length
 from pyspark.ml.feature import StringIndexer, Tokenizer, StopWordsRemover, CountVectorizer
