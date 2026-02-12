@@ -50,7 +50,7 @@ test_df["sentiment"] = y_test
 train_df.to_parquet(f"{OUTPUT_DIR}/train.parquet", index=False)
 test_df.to_parquet(f"{OUTPUT_DIR}/test.parquet", index=False)
 
-print("✅ Split complete!")
+print("Split complete!")
 print(f"Train size: {len(train_df)}")
 print(f"Test size: {len(test_df)}")
 
