@@ -29,15 +29,13 @@ print(f"Test samples: {len(X_test_text)}")
 
 # TF-IDF Vectorizer
 vectorizer = TfidfVectorizer(
-    max_features=10000,       
+    max_features=18000,       
     ngram_range=(1,2),        # unigrams + bigrams
     stop_words="english"      # remove standard English stopwords
 )
 
 # FIT ONLY ON TRAIN DATA
 X_train_vectors = vectorizer.fit_transform(X_train_text)
-
-
 X_test_vectors = vectorizer.transform(X_test_text)
 
 print("Vectorization complete.")

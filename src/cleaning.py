@@ -1,31 +1,66 @@
-
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, lower, regexp_replace, length
+from pyspark.sql.functions import col, lower, regexp_replace, udf
+from pyspark.sql.types import StringType
 from pyspark.ml.feature import StringIndexer, Tokenizer, StopWordsRemover, CountVectorizer
 
+# Simple emoji replacement map
+emoji_map = {
+    ":)": "smile",
+    ":-)": "smile",
+    ":(": "sad",
+    ":-(": "sad",
+    ";)": "wink",
+    "<3": "love"
+}
+
+# Simple common typo fixes
+typo_map = {
+    "juss": "just",
+    "berkeleyy": "berkeley",
+    "donbt": "don't",
+    "wierd": "weird",
+    "obesed": "obese",
+    #Add more here when needed
+}
+
+def replace_emojis_and_typos(text):
+    for emoji, token in emoji_map.items():
+        text = text.replace(emoji, f" {token} ")
+    for typo, correction in typo_map.items():
+        text = text.replace(typo, correction)
+    return text
+
+# Register UDF
+replace_udf = udf(replace_emojis_and_typos, StringType())
+
 def clean_sentiment_data(input_csv, output_parquet):
-    # 1. Initialize Spark session
     spark = SparkSession.builder.appName("SentimentDataCleaning").getOrCreate()
 
-    # 2. Load CSV from same folder
     df = spark.read.csv(input_csv, header=True, inferSchema=True)
 
-    # 3. Drop rows with nulls and duplicates
     df = df.dropna(subset=['text', 'selected_text']).dropDuplicates()
 
-    # 4. Text cleaning 
     # Lowercase
     df = df.withColumn('text', lower(col('text')))
     df = df.withColumn('selected_text', lower(col('selected_text')))
+
+    # Remove URLs
+    df = df.withColumn('text', regexp_replace('text', r'http\S+', ''))
+    df = df.withColumn('selected_text', regexp_replace('selected_text', r'http\S+', ''))
+
     # Remove extra whitespace
     df = df.withColumn('text', regexp_replace('text', '\s+', ' '))
     df = df.withColumn('selected_text', regexp_replace('selected_text', '\s+', ' '))
 
-    # 5. Encode sentiment labels as numerics
+    # Replace emojis and fix typos
+    df = df.withColumn('text', replace_udf(col('text')))
+    df = df.withColumn('selected_text', replace_udf(col('selected_text')))
+
+    # Encode sentiment labels
     indexer = StringIndexer(inputCol='sentiment', outputCol='label')
     df = indexer.fit(df).transform(df)
 
-    # 6. Tokenization 
+    # Tokenization
     tokenizer = Tokenizer(inputCol='text', outputCol='words')
     df = tokenizer.transform(df)
 
@@ -33,13 +68,11 @@ def clean_sentiment_data(input_csv, output_parquet):
     remover = StopWordsRemover(inputCol='words', outputCol='filtered')
     df = remover.transform(df)
 
-
-    # 7. Convert to features using Bag-of-Words
+    # Convert to features using Bag-of-Words
     vectorizer = CountVectorizer(inputCol='filtered', outputCol='features')
     vector_model = vectorizer.fit(df)
     df = vector_model.transform(df)
 
-    # 8. Save cleaned data as Parquet (in src/cleaned_data.parquet)
     df.write.parquet(output_parquet, mode='overwrite')
 
     spark.stop()
@@ -47,6 +80,6 @@ def clean_sentiment_data(input_csv, output_parquet):
 
 
 if __name__ == "__main__":
-    input_csv = "../raw_data/messages.csv"             
-    output_parquet = "cleaned_messages.parquet"  
+    input_csv = "../raw_data/messages.csv"
+    output_parquet = "../cleaned_data/cleaned_messages.parquet"
     clean_sentiment_data(input_csv, output_parquet)
