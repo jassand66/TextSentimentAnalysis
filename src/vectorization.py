@@ -4,6 +4,8 @@ import joblib
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 
+
+
 INPUT_DIR = "../split_data"
 OUTPUT_DIR = "../features"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -25,11 +27,11 @@ print("Data loaded.")
 print(f"Train samples: {len(X_train_text)}")
 print(f"Test samples: {len(X_test_text)}")
 
-# === TF-IDF Vectorizer ===
+# TF-IDF Vectorizer
 vectorizer = TfidfVectorizer(
-    max_features=10000,   # limit vocab size
-    ngram_range=(1,2),    # unigrams + bigrams
-    stop_words="english"
+    max_features=10000,       
+    ngram_range=(1,2),        # unigrams + bigrams
+    stop_words="english"      # remove standard English stopwords
 )
 
 # FIT ONLY ON TRAIN DATA
