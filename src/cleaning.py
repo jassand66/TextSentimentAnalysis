@@ -10,10 +10,10 @@ emoji_map = {
     ":(": "sad",
     ":-(": "sad",
     ";)": "wink",
-    "<3": "love"
+    "<3": "heart"
 }
 
-# Simple common typo fixes
+# Simple common typo fixes, look into Python library for spell fixing
 typo_map = {
     "juss": "just",
     "berkeleyy": "berkeley",
