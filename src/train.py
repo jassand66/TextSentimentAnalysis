@@ -13,9 +13,7 @@ TRAIN_PATH = f"{FEATURES_DIR}/train_vectors.pkl"
 TEST_PATH = f"{FEATURES_DIR}/test_vectors.pkl"
 os.makedirs(FEATURES_DIR, exist_ok=True)
 
-# ----------------------------
-# 1. Load vectorized data
-# ----------------------------
+# Load vectorized data
 X_train, y_train = joblib.load(TRAIN_PATH)
 X_test, y_test = joblib.load(TEST_PATH)
 
@@ -27,9 +25,7 @@ print("Data loaded.")
 print(f"Train shape: {X_train.shape}")
 print(f"Test shape: {X_test.shape}")
 
-# ----------------------------
-# 2. Encode labels
-# ----------------------------
+# Encode labels
 le = LabelEncoder()
 y_train_enc = le.fit_transform(y_train)
 y_test_enc = le.transform(y_test)
@@ -38,9 +34,7 @@ y_test_enc = le.transform(y_test)
 y_train_cat = to_categorical(y_train_enc)
 y_test_cat = to_categorical(y_test_enc)
 
-# ----------------------------
-# 3. Build deep learning model
-# ----------------------------
+# Build deep learning model
 model = Sequential([
     Dense(512, activation='relu', input_shape=(X_train.shape[1],)),
     Dropout(0.3),
@@ -64,9 +58,7 @@ history = model.fit(
     verbose=1
 )
 
-# ----------------------------
-# 4. Evaluate model
-# ----------------------------
+# Evaluate model
 y_pred_probs = model.predict(X_test)
 y_pred = y_pred_probs.argmax(axis=1)
 
@@ -78,9 +70,7 @@ print(classification_report(y_test_enc, y_pred))
 print("Confusion Matrix:")
 print(confusion_matrix(y_test_enc, y_pred))
 
-# ----------------------------
-# 5. Save model
-# ----------------------------
+# Save model
 model_path = f"{FEATURES_DIR}/deep_learning_model.h5"
 model.save(model_path)
 print(f"\nModel saved to {model_path}")

@@ -1,85 +1,49 @@
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, lower, regexp_replace, udf
-from pyspark.sql.types import StringType
-from pyspark.ml.feature import StringIndexer, Tokenizer, StopWordsRemover, CountVectorizer
+import os
+import pandas as pd
+from cleantext import clean
+import emoji
+from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.model_selection import train_test_split
 
-# Simple emoji replacement map
-emoji_map = {
-    ":)": "smile",
-    ":-)": "smile",
-    ":(": "sad",
-    ":-(": "sad",
-    ";)": "wink",
-    "<3": "heart"
-}
+# Paths
+RAW_CSV = "../raw_data/messages.csv"
+OUTPUT_PARQUET = "../cleaned_data/cleaned_messages.parquet"
+os.makedirs(os.path.dirname(OUTPUT_PARQUET), exist_ok=True)
 
-# Simple common typo fixes, look into Python library for spell fixing
-typo_map = {
-    "juss": "just",
-    "berkeleyy": "berkeley",
-    "donbt": "don't",
-    "wierd": "weird",
-    "obesed": "obese",
-    #Add more here when needed
-}
+# Load data
+df = pd.read_csv(RAW_CSV)
 
-def replace_emojis_and_typos(text):
-    for emoji, token in emoji_map.items():
-        text = text.replace(emoji, f" {token} ")
-    for typo, correction in typo_map.items():
-        text = text.replace(typo, correction)
-    return text
+# Drop missing or duplicate rows
+df = df.dropna(subset=['text', 'selected_text']).drop_duplicates()
 
-# Register UDF
-replace_udf = udf(replace_emojis_and_typos, StringType())
+# Define text cleaning function
+def clean_text(text):
+    if not isinstance(text, str):
+        return ""
+    
+    # Use cleantext for basic cleaning
+    cleaned = clean(text)
+    
+    # Additional manual cleaning
+    cleaned = cleaned.lower()
+    cleaned = cleaned.strip()
+    
+    return cleaned
 
-def clean_sentiment_data(input_csv, output_parquet):
-    spark = SparkSession.builder.appName("SentimentDataCleaning").getOrCreate()
+# Apply cleaning
+df['text'] = df['text'].apply(clean_text)
+df['selected_text'] = df['selected_text'].apply(clean_text)
 
-    df = spark.read.csv(input_csv, header=True, inferSchema=True)
+# Encode labels
+le = LabelEncoder()
+df['label'] = le.fit_transform(df['sentiment'])
 
-    df = df.dropna(subset=['text', 'selected_text']).dropDuplicates()
+# Convert text to features
+vectorizer = CountVectorizer(stop_words='english')
+X = vectorizer.fit_transform(df['text'])
+y = df['label']
 
-    # Lowercase
-    df = df.withColumn('text', lower(col('text')))
-    df = df.withColumn('selected_text', lower(col('selected_text')))
-
-    # Remove URLs
-    df = df.withColumn('text', regexp_replace('text', r'http\S+', ''))
-    df = df.withColumn('selected_text', regexp_replace('selected_text', r'http\S+', ''))
-
-    # Remove extra whitespace
-    df = df.withColumn('text', regexp_replace('text', '\s+', ' '))
-    df = df.withColumn('selected_text', regexp_replace('selected_text', '\s+', ' '))
-
-    # Replace emojis and fix typos
-    df = df.withColumn('text', replace_udf(col('text')))
-    df = df.withColumn('selected_text', replace_udf(col('selected_text')))
-
-    # Encode sentiment labels
-    indexer = StringIndexer(inputCol='sentiment', outputCol='label')
-    df = indexer.fit(df).transform(df)
-
-    # Tokenization
-    tokenizer = Tokenizer(inputCol='text', outputCol='words')
-    df = tokenizer.transform(df)
-
-    # Remove stop words
-    remover = StopWordsRemover(inputCol='words', outputCol='filtered')
-    df = remover.transform(df)
-
-    # Convert to features using Bag-of-Words
-    vectorizer = CountVectorizer(inputCol='filtered', outputCol='features')
-    vector_model = vectorizer.fit(df)
-    df = vector_model.transform(df)
-
-    df.write.parquet(output_parquet, mode='overwrite')
-
-    spark.stop()
-    print(f"Data cleaned and saved to {output_parquet}")
-
-
-if __name__ == "__main__":
-    input_csv = "../raw_data/messages.csv"
-    output_parquet = "../cleaned_data/cleaned_messages.parquet"
-    clean_sentiment_data(input_csv, output_parquet)
+# Save cleaned data
+df[['text', 'selected_text', 'sentiment', 'label']].to_parquet(OUTPUT_PARQUET, index=False)
+print(f"Cleaned data saved to {OUTPUT_PARQUET}")
