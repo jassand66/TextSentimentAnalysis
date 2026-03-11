@@ -6,6 +6,9 @@ from sklearn.metrics import classification_report, confusion_matrix, accuracy_sc
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
 from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.regularizers import l2
+# from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.optimizers import Adam
 
 FEATURES_DIR = "../features"
 
@@ -34,17 +37,23 @@ y_test_enc = le.transform(y_test)
 y_train_cat = to_categorical(y_train_enc)
 y_test_cat = to_categorical(y_test_enc)
 
+# early_stopping = EarlyStopping(
+#     monitor="val_loss",
+#     patience=2,
+#     restore_best_weights=True
+# )
+
 # Build deep learning model
 model = Sequential([
-    Dense(512, activation='relu', input_shape=(X_train.shape[1],)),
-    Dropout(0.3),
-    Dense(256, activation='relu'),
-    Dropout(0.3),
+    Dense(256, activation='relu', kernel_regularizer=l2(0.001), input_shape=(X_train.shape[1],)),
+    Dropout(0.5),
+    Dense(128, activation='relu', kernel_regularizer=l2(0.001)),
+    Dropout(0.5),
     Dense(y_train_cat.shape[1], activation='softmax')
 ])
 
 model.compile(
-    optimizer='adam',
+    optimizer=Adam(learning_rate=0.0001),
     loss='categorical_crossentropy',
     metrics=['accuracy']
 )
@@ -54,8 +63,9 @@ history = model.fit(
     X_train, y_train_cat,
     validation_split=0.1,
     epochs=10,
-    batch_size=32,
-    verbose=1
+    batch_size=64,
+    verbose=1,
+    # callbacks=[early_stopping]
 )
 
 # Evaluate model
@@ -71,6 +81,6 @@ print("Confusion Matrix:")
 print(confusion_matrix(y_test_enc, y_pred))
 
 # Save model
-model_path = f"{FEATURES_DIR}/deep_learning_model.h5"
+model_path = f"{FEATURES_DIR}/deep_learning_model.keras"
 model.save(model_path)
 print(f"\nModel saved to {model_path}")
