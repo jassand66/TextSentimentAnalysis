@@ -17,7 +17,7 @@ TEST_PATH = f"{INPUT_DIR}/test.parquet"
 train_df = pd.read_parquet(TRAIN_PATH)
 test_df = pd.read_parquet(TEST_PATH)
 
-X_train_text = train_df["text"]      # change if your column name differs
+X_train_text = train_df["text"]     
 X_test_text = test_df["text"]
 
 y_train = train_df["sentiment"]
